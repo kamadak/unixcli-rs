@@ -2,3 +2,11 @@
 name = "unixcli"
 version = "0.1.0"
 authors = ["KAMADA Ken'ichi <kamada@nanohz.org>"]
+
+description = "Helper library for writing unix command line utilities in Rust"
+homepage = "https://github.com/kamadak/unixcli-rs"
+repository = "https://github.com/kamadak/unixcli-rs"
+readme = "README"
+keywords = ["cli", "command", "command-line", "unix"]
+categories = ["command-line-interface"]
+license = "BSD-2-Clause"
