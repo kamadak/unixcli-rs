@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["KAMADA Ken'ichi <kamada@nanohz.org>"]
 
 description = "Helper library for writing unix command line utilities in Rust"
+documentation = "https://docs.rs/unixcli"
 homepage = "https://github.com/kamadak/unixcli-rs"
 repository = "https://github.com/kamadak/unixcli-rs"
 readme = "README"
