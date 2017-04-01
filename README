@@ -1,2 +1,23 @@
 Helper library for writing unix command line utilities in Rust
 --------------------------------------------------------------
+
+   This library provides helper functions for writing unix command-line
+   utilities.
+
+Features
+--------
+
+   progname
+      Provides access to the name of the current program.
+
+Usage
+-----
+
+   Add a dependency entry to your Cargo.toml.
+
+      [dependencies]
+      unixcli = "0.1"
+
+   Add the following to your crate root.
+
+      extern crate unixcli;
