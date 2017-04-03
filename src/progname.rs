@@ -128,6 +128,13 @@ mod tests {
     fn components() {
         setprogname("/path/to/a/command");
         assert_eq!(getprogname(), "command");
+        #[cfg(windows)]
+        {
+            setprogname("c:\\path\\to\\a\\command2");
+            assert_eq!(getprogname(), "command2");
+            setprogname("c:command3");
+            assert_eq!(getprogname(), "command3");
+        }
     }
 
     fn threads() {
