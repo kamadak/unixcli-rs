@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2016 KAMADA Ken'ichi.
+// Copyright (c) 2017 KAMADA Ken'ichi.
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -24,8 +24,13 @@
 // SUCH DAMAGE.
 //
 
-//! This library provides helper functions for writing unix
-//! command-line utilities.
+#[macro_use(warn)]
+extern crate unixcli as another_name;
 
-pub mod err;
-pub mod progname;
+// Test if the backend function can be called through a macro
+// when the crate is imported as a different name.
+#[test]
+fn crate_as_another_name () {
+    warn!("crate as another name 1");
+    warn!("crate as another name {}", 2);
+}

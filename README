@@ -9,6 +9,8 @@ Features
 
    progname
       Provides access to the name of the current program.
+   err
+      Prints messages to the standard error output.
 
 Usage
 -----
