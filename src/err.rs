@@ -31,8 +31,6 @@ use std::io;
 use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
-#[cfg(windows)]
-use std::os::windows::ffi::OsStrExt;
 use std::str;
 
 use progname;
@@ -67,7 +65,13 @@ macro_rules! warn {
 pub fn vwarn(fmt: fmt::Arguments) {
     let mut buf = Vec::new();
     if let Some(ref os) = *progname::getprogname_arc() {
+        #[cfg(unix)]
         buf.extend_from_slice(os.as_bytes());
+        #[cfg(not(unix))]
+        match os.to_str() {
+            Some(s) => { let _ = write!(&mut buf, "{}", s); },
+            None => {},
+        };
     }
     buf.extend_from_slice(b": ");
     let msgstart = buf.len();
