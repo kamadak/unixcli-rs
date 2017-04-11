@@ -62,6 +62,7 @@ macro_rules! warn {
     );
 }
 
+/// This function is not a part of public/stable APIs.
 /// This function should be used through `err!` or `warn!` macros.
 pub fn vwarn(fmt: fmt::Arguments) {
     let mut buf = Vec::new();
