@@ -110,9 +110,9 @@ mod tester {
     use std::cell::RefCell;
     use std::io;
     use std::io::Result;
-    thread_local!(static STDERR_BUF: RefCell<Vec<u8>> = {
-        RefCell::new(Vec::new())
-    });
+    thread_local! {
+        static STDERR_BUF: RefCell<Vec<u8>> = RefCell::new(Vec::new());
+    }
     pub struct DummyStderr();
     impl DummyStderr {
         pub fn new() -> DummyStderr { DummyStderr() }
