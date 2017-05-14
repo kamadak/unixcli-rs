@@ -27,7 +27,6 @@
 //! Prints messages to the standard error output.
 
 use std::fmt;
-use std::io;
 use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
@@ -41,10 +40,13 @@ use progname;
 /// which is followed by a newline character.
 #[macro_export]
 macro_rules! err {
-    ($status:expr, $($fmtargs:tt)*) => ({
-        warn!($($fmtargs)*);
-        ::std::process::exit($status);
-    })
+    ($status:expr, $fmt:expr) => (
+        $crate::err::verr($status, format_args!(concat!($fmt, "\n")));
+    );
+    ($status:expr, $fmt:expr, $($args:tt)*) => (
+        $crate::err::verr(
+            $status, format_args!(concat!($fmt, "\n"), $($args)*));
+    );
 }
 
 /// Prints the formatted message to the standard error output (stderr).
@@ -61,7 +63,14 @@ macro_rules! warn {
 }
 
 /// This function is not a part of public/stable APIs.
-/// This function should be used through `err!` or `warn!` macros.
+/// This function should be used through the `err!` macro.
+pub fn verr(status: i32, fmt: fmt::Arguments) {
+    vwarn(fmt);
+    tester::exit(status);
+}
+
+/// This function is not a part of public/stable APIs.
+/// This function should be used through the `warn!` macro.
 pub fn vwarn(fmt: fmt::Arguments) {
     let mut buf = Vec::new();
     if let Some(ref os) = *progname::getprogname_arc() {
@@ -76,7 +85,7 @@ pub fn vwarn(fmt: fmt::Arguments) {
     buf.extend_from_slice(b": ");
     let msgstart = buf.len();
     let _ = buf.write_fmt(fmt);
-    if let Err(e) = io::stderr().write(&buf) {
+    if let Err(e) = tester::stderr().write(&buf) {
         // The message was composed by write_fmt, so from_utf8 should not fail.
         let msg = str::from_utf8(&buf[msgstart..]).unwrap_or("");
         // If writing to stderr failed, writing the panic message will
@@ -85,11 +94,68 @@ pub fn vwarn(fmt: fmt::Arguments) {
     }
 }
 
+#[cfg(not(test))]
+mod tester {
+    #[inline(always)]
+    pub fn exit(status: i32) { ::std::process::exit(status); }
+    #[inline(always)]
+    pub fn stderr() -> ::std::io::Stderr { ::std::io::stderr() }
+}
+
+#[cfg(test)]
+mod tester {
+    pub fn exit(status: i32) { panic!("expected exit with {}", status); }
+    pub fn stderr() -> DummyStderr { DummyStderr::new() }
+
+    use std::cell::RefCell;
+    use std::io;
+    use std::io::Result;
+    thread_local!(static STDERR_BUF: RefCell<Vec<u8>> = {
+        RefCell::new(Vec::new())
+    });
+    pub struct DummyStderr();
+    impl DummyStderr {
+        pub fn new() -> DummyStderr { DummyStderr() }
+    }
+    impl io::Write for DummyStderr {
+        fn write(&mut self, buf: &[u8]) -> Result<usize> {
+            STDERR_BUF.with(|v| v.borrow_mut().extend_from_slice(buf));
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> Result<()> { Ok(()) }
+    }
+    pub fn get_stderr() -> Vec<u8> {
+        STDERR_BUF.with(|v| v.borrow().clone())
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    // The status 0 is a bit dangerous.  The test runner assumes the
+    // tests are successful if the exit status is 0, even when the
+    // dummy exit is not working and the process really exits before
+    // completing the tests,
+    #[test]
+    #[should_panic(expected = "expected exit with 0")]
+    fn err1() {
+        err!(0, "err 1");
+    }
+
+    #[test]
+    #[should_panic(expected = "expected exit with 9")]
+    fn err2() {
+        err!(9, "err {}", 2);
+    }
+
     #[test]
     fn warn() {
         warn!("warn 1");
+        assert!(tester::get_stderr().ends_with(b": warn 1\n"));
         warn!("warn {}", 2);
+        assert!(tester::get_stderr().ends_with(b": warn 2\n"));
+        warn!("{} {}", "warn", 3);
+        assert!(tester::get_stderr().ends_with(b": warn 3\n"));
     }
 }
