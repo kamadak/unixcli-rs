@@ -40,18 +40,19 @@ struct Inner {
     name: Arc<Option<OsString>>,
 }
 
-static mut PROGNAME: *const Outer = 0 as *const Outer;
-static ONCE: Once = ONCE_INIT;
+fn get_instance() -> &'static Mutex<Inner> {
+    static mut INSTANCE: *const Outer = 0 as *const Outer;
+    static ONCE: Once = ONCE_INIT;
 
-fn init_mutex() {
     ONCE.call_once(|| {
-        let instance = Outer {
+        let instance = Box::new(Outer {
             inner: Mutex::new(Inner { name: Arc::new(get_exec_name()) }),
-        };
+        });
         unsafe {
-            PROGNAME = mem::transmute(Box::new(instance));
+            INSTANCE = mem::transmute(instance);
         }
     });
+    unsafe { &(*INSTANCE).inner }
 }
 
 /// Returns the name of the current program as a `String`.
@@ -68,19 +69,15 @@ pub fn getprogname() -> String {
 /// In contrast to `getprogname()`, this function returns a
 /// shared `OsString`.
 pub fn getprogname_arc() -> Arc<Option<OsString>> {
-    init_mutex();
-    let inner = unsafe { &(*PROGNAME).inner };
-    inner.lock().unwrap().name.clone()
+    get_instance().lock().unwrap().name.clone()
 }
 
 /// Sets the name of the current program.
 /// The name is taken from the last component of the path.
 pub fn setprogname<S>(path: &S) where S: AsRef<OsStr> + ?Sized {
-    init_mutex();
     let name = Path::new(path).file_name().unwrap_or(path.as_ref()).to_owned();
     let new = Arc::new(Some(name));
-    let inner = unsafe { &(*PROGNAME).inner };
-    inner.lock().unwrap().name = new;
+    get_instance().lock().unwrap().name = new;
 }
 
 fn get_exec_name() -> Option<OsString> {
