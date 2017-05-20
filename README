@@ -23,3 +23,8 @@ Usage
    Add the following to your crate root.
 
       extern crate unixcli;
+
+Dependencies
+------------
+
+   Rust 1.15 or later is required to build.
