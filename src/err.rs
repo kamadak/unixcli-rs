@@ -158,4 +158,16 @@ mod tests {
         warn!("{} {}", "warn", 3);
         assert!(tester::get_stderr().ends_with(b": warn 3\n"));
     }
+
+    #[test]
+    #[should_panic(expected = "expected exit with 1")]
+    fn err_named_param() {
+        err!(1, "x = {x}, y = {y}", y = 20, x = 10);
+    }
+
+    #[test]
+    fn warn_named_param() {
+        warn!("x = {x}, y = {y}", y = 20, x = 10);
+        assert!(tester::get_stderr().ends_with(b": x = 10, y = 20\n"));
+    }
 }
