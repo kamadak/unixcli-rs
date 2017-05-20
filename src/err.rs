@@ -30,6 +30,7 @@ use std::fmt;
 use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
+use std::path::Path;
 use std::str;
 
 use progname;
@@ -37,41 +38,75 @@ use progname;
 /// Prints the formatted message to the standard error output (stderr)
 /// and terminates the program with the given `status` value.
 /// The program name, a colon, and a space are output before the message,
-/// which is followed by a newline character.
+/// and a newline character follows.
 #[macro_export]
 macro_rules! err {
     ($status:expr, $fmt:expr) => (
-        $crate::err::verr($status, format_args!(concat!($fmt, "\n")));
+        $crate::err::verrp($status, None as Option<&str>,
+                           format_args!(concat!($fmt, "\n")));
     );
     ($status:expr, $fmt:expr, $($args:tt)*) => (
-        $crate::err::verr(
-            $status, format_args!(concat!($fmt, "\n"), $($args)*));
+        $crate::err::verrp($status, None as Option<&str>,
+                           format_args!(concat!($fmt, "\n"), $($args)*));
+    );
+}
+
+/// Prints the formatted message to the standard error output (stderr)
+/// and terminates the program with the given `status` value.
+/// The program name, a colon, a pathname, another colon, and a space
+/// are output before the message, and a newline character follows.
+#[macro_export]
+macro_rules! errp {
+    ($status:expr, $path:expr, $fmt:expr) => (
+        $crate::err::verrp($status, Some($path),
+                           format_args!(concat!($fmt, "\n")));
+    );
+    ($status:expr, $path:expr, $fmt:expr, $($args:tt)*) => (
+        $crate::err::verrp($status, Some($path),
+                           format_args!(concat!($fmt, "\n"), $($args)*));
     );
 }
 
 /// Prints the formatted message to the standard error output (stderr).
 /// The program name, a colon, and a space are output before the message,
-/// which is followed by a newline character.
+/// and a newline character follows.
 #[macro_export]
 macro_rules! warn {
     ($fmt:expr) => (
-        $crate::err::vwarn(format_args!(concat!($fmt, "\n")));
+        $crate::err::vwarnp(None as Option<&str>,
+                            format_args!(concat!($fmt, "\n")));
     );
     ($fmt:expr, $($args:tt)*) => (
-        $crate::err::vwarn(format_args!(concat!($fmt, "\n"), $($args)*));
+        $crate::err::vwarnp(None as Option<&str>,
+                            format_args!(concat!($fmt, "\n"), $($args)*));
+    );
+}
+
+/// Prints the formatted message to the standard error output (stderr).
+/// The program name, a colon, a pathname, another colon, and a space
+/// are output before the message, and a newline character follows.
+#[macro_export]
+macro_rules! warnp {
+    ($path:expr, $fmt:expr) => (
+        $crate::err::vwarnp(Some($path),
+                            format_args!(concat!($fmt, "\n")));
+    );
+    ($path:expr, $fmt:expr, $($args:tt)*) => (
+        $crate::err::vwarnp(Some($path),
+                            format_args!(concat!($fmt, "\n"), $($args)*));
     );
 }
 
 /// This function is not a part of public/stable APIs.
-/// This function should be used through the `err!` macro.
-pub fn verr(status: i32, fmt: fmt::Arguments) {
-    vwarn(fmt);
+/// This function should be used through the `err!` or `errp!` macros.
+pub fn verrp<P>(status: i32, path: Option<P>, fmt: fmt::Arguments) where P: AsRef<Path> {
+    vwarnp(path, fmt);
     tester::exit(status);
 }
 
 /// This function is not a part of public/stable APIs.
-/// This function should be used through the `warn!` macro.
-pub fn vwarn(fmt: fmt::Arguments) {
+/// This function should be used through the `warn!` or `warnp!` macros.
+pub fn vwarnp<P>(path: Option<P>, fmt: fmt::Arguments) where P: AsRef<Path> {
     let mut buf = Vec::new();
     if let Some(ref os) = *progname::getprogname_arc() {
         #[cfg(unix)]
@@ -83,6 +118,16 @@ pub fn vwarn(fmt: fmt::Arguments) {
         };
     }
     buf.extend_from_slice(b": ");
+    if let Some(path) = path {
+        #[cfg(unix)]
+        buf.extend_from_slice(path.as_ref().as_os_str().as_bytes());
+        #[cfg(not(unix))]
+        match path.as_ref().to_str() {
+            Some(s) => { let _ = write!(&mut buf, "{}", s); },
+            None => {},
+        };
+        buf.extend_from_slice(b": ");
+    }
     let msgstart = buf.len();
     let _ = buf.write_fmt(fmt);
     if let Err(e) = tester::stderr().write(&buf) {
@@ -131,6 +176,7 @@ mod tester {
 
 #[cfg(test)]
 mod tests {
+    use std::ffi::OsStr;
     use super::*;
 
     // The status 0 is a bit dangerous.  The test runner assumes the
@@ -150,6 +196,12 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "expected exit with 0")]
+    fn errp3() {
+        errp!(0, Path::new("Path"), "{} {}", "errp", 3);
+    }
+
+    #[test]
     fn warn() {
         warn!("warn 1");
         assert!(tester::get_stderr().ends_with(b": warn 1\n"));
@@ -157,6 +209,20 @@ mod tests {
         assert!(tester::get_stderr().ends_with(b": warn 2\n"));
         warn!("{} {}", "warn", 3);
         assert!(tester::get_stderr().ends_with(b": warn 3\n"));
+    }
+
+    #[test]
+    fn warnp() {
+        warnp!("str", "warnp 1");
+        assert!(tester::get_stderr().ends_with(b": str: warnp 1\n"));
+        warnp!("str", "warnp {}", 2);
+        assert!(tester::get_stderr().ends_with(b": str: warnp 2\n"));
+        warnp!("str", "{} {}", "warnp", 3);
+        assert!(tester::get_stderr().ends_with(b": str: warnp 3\n"));
+        warnp!(Path::new("Path"), "warnp 1");
+        assert!(tester::get_stderr().ends_with(b": Path: warnp 1\n"));
+        warnp!(OsStr::new("OsStr"), "warnp 1");
+        assert!(tester::get_stderr().ends_with(b": OsStr: warnp 1\n"));
     }
 
     #[test]
