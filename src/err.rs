@@ -99,7 +99,7 @@ macro_rules! warnp {
 
 /// This function is not a part of public/stable APIs.
 /// This function should be used through the `err!` or `errp!` macros.
-pub fn verrp<P>(status: i32, path: Option<P>, fmt: fmt::Arguments) where P: AsRef<Path> {
+pub fn verrp<P>(status: i32, path: Option<P>, fmt: fmt::Arguments) -> ! where P: AsRef<Path> {
     vwarnp(path, fmt);
     tester::exit(status);
 }
@@ -142,14 +142,14 @@ pub fn vwarnp<P>(path: Option<P>, fmt: fmt::Arguments) where P: AsRef<Path> {
 #[cfg(not(test))]
 mod tester {
     #[inline(always)]
-    pub fn exit(status: i32) { ::std::process::exit(status); }
+    pub fn exit(status: i32) -> ! { ::std::process::exit(status); }
     #[inline(always)]
     pub fn stderr() -> ::std::io::Stderr { ::std::io::stderr() }
 }
 
 #[cfg(test)]
 mod tester {
-    pub fn exit(status: i32) { panic!("expected exit with {}", status); }
+    pub fn exit(status: i32) -> ! { panic!("expected exit with {}", status); }
     pub fn stderr() -> DummyStderr { DummyStderr::new() }
 
     use std::cell::RefCell;
