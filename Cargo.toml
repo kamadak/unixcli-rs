@@ -1,6 +1,6 @@
 [package]
 name = "unixcli"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["KAMADA Ken'ichi <kamada@nanohz.org>"]
 
 description = "Helper library for writing unix command line utilities in Rust"
